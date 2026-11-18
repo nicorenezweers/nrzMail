@@ -172,3 +172,56 @@
   .chart text { font-family: var(--font-sans); }
   .chart g:hover > rect:not([fill="transparent"]) { opacity: 0.7; }
 }
+
+/* macOS-App: Milchglas wie in nrzX. Die App macht das Fenster durchsichtig und legt die Vibrancy
+   von macOS dahinter (`html.nrz-glass`, gesetzt von der App vor dem ersten Zeichnen). Die
+   Oberfläche tönt dann nur noch: Seitenleiste leicht, Inhalt etwas stärker, Füllungen
+   durchscheinend. Schwebendes (Dialoge, Blätter: `.nrz-pane`, Menüs: `bg-popover`) zeichnet
+   selbst weich, damit es über Inhalt lesbar bleibt. Ausserhalb von @layer, damit es die
+   Utilities schlägt. */
+html.nrz-glass {
+  --background: oklch(0.17 0.002 270 / 34%);
+  --card: oklch(1 0 0 / 5%);
+  --popover: oklch(0.2 0.002 270 / 86%);
+  --secondary: oklch(1 0 0 / 8%);
+  --muted: oklch(1 0 0 / 7%);
+  --accent: oklch(1 0 0 / 9%);
+  --surface: oklch(0.13 0 0 / 38%);
+  --sidenav: oklch(0.17 0 0 / 14%);
+  --sidenav-accent: oklch(1 0 0 / 9%);
+  --border: oklch(1 0 0 / 9%);
+  --sidenav-border: oklch(1 0 0 / 7%);
+  --pane: oklch(0.19 0.002 270 / 90%);
+}
+html.nrz-glass, html.nrz-glass body { background: transparent; }
+html.nrz-glass .nrz-pane {
+  background-color: var(--pane);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  backdrop-filter: blur(28px) saturate(160%);
+}
+html.nrz-glass .bg-popover {
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  backdrop-filter: blur(30px) saturate(180%);
+}
+html.nrz-glass .nrz-pane .bg-popover { background-color: oklch(0.21 0.002 270 / 96%); }
+/* Abdunkelnde Hintergründe hinter Dialogen etwas weicher */
+html.nrz-glass .bg-black\/60 { background-color: rgb(0 0 0 / 0.35); }
+
+/* macOS-App: Titelleiste in der Oberfläche. Die App meldet die Lage der Ampel (`--nrz-tl-y` Mitte,
+   `--nrz-tl-r` rechter Rand); über der Seitenleiste bleibt ein Streifen zum Ziehen frei. */
+.nrz-titlebar { display: none; }
+.nrz-mac {
+  --nrz-tl-y: 26px;
+  --nrz-tl-r: 79px;
+}
+.nrz-mac .nrz-titlebar {
+  display: block;
+  flex-shrink: 0;
+  height: calc(var(--nrz-tl-y) + 12px);
+  -webkit-user-select: none;
+  user-select: none;
+}
+/* Eingeklappte Seitenleiste in der App so breit, dass die Ampel darüber passt */
+@media (min-width: 48rem) {
+  .nrz-mac .nrz-side[data-collapsed="true"] { width: calc(var(--nrz-tl-r) + 10px); }
+}

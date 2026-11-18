@@ -1,0 +1,50 @@
+[package]
+name = "nrzmail-macos"
+# Gleiche Version wie der Server (Cargo.toml) – scripts/macos.sh prüft das.
+version = "1.1.0"
+edition = "2021"
+description = "nrzMail als macOS-App: Milchglas-Fenster, eigener lokaler Server (geht ohne Server) oder Verbindung zu einer nrzMail-Instanz"
+license = "AGPL-3.0-or-later"
+rust-version = "1.85"
+publish = false
+
+[[bin]]
+name = "nrzmail-macos"
+path = "src/main.rs"
+
+[dependencies]
+# Lokaler Server im selben Prozess (Bibliothek aus dem Hauptprojekt, Oberfläche eingebettet)
+nrzmail = { path = ".." }
+rocket = { version = "=0.5.1", features = ["secrets", "json"] }
+
+# Natives Fenster, WKWebView, Menüleiste, Milchglas
+tao = "0.37"
+wry = { version = "0.57", features = ["devtools"] }
+muda = "0.21"
+window-vibrancy = "0.8"
+rfd = "0.18"
+getrandom = "0.2"
+
+# Verbindung zur Server-Instanz prüfen
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+hex = "0.4"
+
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSUserNotification", "NSString", "NSGeometry"] }
+objc2-app-kit = { version = "0.3", default-features = false, features = ["std", "NSWindow", "NSView", "NSResponder", "NSButton", "NSControl", "NSToolbar"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true
+
+[profile.dev.package.argon2]
+opt-level = 3

@@ -7,3 +7,4 @@ nrzmail.key
 /dist*
 /.wt
 /shared/Cargo.lock
+/macos/target

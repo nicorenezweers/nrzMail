@@ -104,8 +104,11 @@ fn Shell() -> Element {
     let width = if collapsed { "md:w-[3.75rem]" } else { "md:w-64" };
     rsx! {
         div { class: "flex h-dvh overflow-hidden pt-safe px-safe",
-            aside { class: "hidden shrink-0 border-r border-sidenav-border bg-sidenav transition-[width] duration-200 md:flex md:flex-col {width}",
+            aside { class: "nrz-side hidden shrink-0 border-r border-sidenav-border bg-sidenav transition-[width] duration-200 md:flex md:flex-col {width}",
                 "aria-label": "Navigation",
+                "data-collapsed": if collapsed { "true" } else { "false" },
+                // macOS-App: Platz für die Ampel, zum Ziehen des Fensters (sonst unsichtbar)
+                div { class: "nrz-titlebar", "data-drag": "true" }
                 Sidebar { collapsed }
             }
             if MOBILE_NAV() {

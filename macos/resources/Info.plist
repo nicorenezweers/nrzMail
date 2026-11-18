@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>CFBundleName</key>
+  <string>nrzMail</string>
+  <key>CFBundleDisplayName</key>
+  <string>nrzMail</string>
+  <key>CFBundleIdentifier</key>
+  <string>ch.nrzstudio.nrzmail</string>
+  <key>CFBundleExecutable</key>
+  <string>nrzmail-macos</string>
+  <key>CFBundleIconFile</key>
+  <string>nrzMail</string>
+  <key>CFBundlePackageType</key>
+  <string>APPL</string>
+  <key>CFBundleShortVersionString</key>
+  <string>__VERSION__</string>
+  <key>CFBundleVersion</key>
+  <string>__VERSION__</string>
+  <key>CFBundleDevelopmentRegion</key>
+  <string>de</string>
+  <key>LSMinimumSystemVersion</key>
+  <string>11.0</string>
+  <key>LSApplicationCategoryType</key>
+  <string>public.app-category.productivity</string>
+  <key>NSHighResolutionCapable</key>
+  <true/>
+  <key>NSSupportsAutomaticGraphicsSwitching</key>
+  <true/>
+  <key>NSRequiresAquaSystemAppearance</key>
+  <false/>
+  <!-- Lokaler Server auf 127.0.0.1 und Server-Instanzen im Heimnetz über HTTP (z. B. Umbrel) -->
+  <key>NSAppTransportSecurity</key>
+  <dict>
+    <key>NSAllowsLocalNetworking</key>
+    <true/>
+    <key>NSAllowsArbitraryLoads</key>
+    <true/>
+    <key>NSAllowsArbitraryLoadsInWebContent</key>
+    <true/>
+  </dict>
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>nrzMail verbindet sich mit deinem nrzMail-Server im Heimnetz.</string>
+  <key>NSHumanReadableCopyright</key>
+  <string>AGPL-3.0-or-later · nrzStudio</string>
+</dict>
+</plist>

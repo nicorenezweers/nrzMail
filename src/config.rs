@@ -42,6 +42,12 @@ pub struct Config {
     pub login_max_failures: u32,
     /// … innerhalb dieser Minuten; danach wird bis zum Ende des Zeitfensters abgewiesen.
     pub login_window_minutes: u32,
+    /// Nur in der macOS-App (lokaler Server): Token, mit dem sich die App ohne Passwort anmeldet
+    /// (`/__desktop/login`). Ohne Token gibt es diese Anmeldung nicht.
+    pub desktop_token: Option<String>,
+    /// Benutzername und Anzeigename für das Konto, das die App beim ersten Start anlegt.
+    pub desktop_user: String,
+    pub desktop_full_name: String,
 }
 
 impl Default for Config {
@@ -63,6 +69,9 @@ impl Default for Config {
             ai_model: String::new(),
             login_max_failures: 10,
             login_window_minutes: 15,
+            desktop_token: None,
+            desktop_user: String::new(),
+            desktop_full_name: String::new(),
         }
     }
 }

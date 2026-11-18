@@ -1,6 +1,6 @@
 [package]
 name = "nrzmail"
-version = "1.0.0"
+version = "1.1.0"
 edition = "2021"
 description = "nrzMail – selbst gehosteter Mail-Client und Mail-Archiv in Rust (Rocket, SQLCipher, Dioxus)"
 license = "AGPL-3.0-or-later"

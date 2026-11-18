@@ -45,6 +45,7 @@ pub async fn build_with(figment: Figment) -> Result<Rocket<Build>, error::AppErr
         .attach(fairings::CloseDatabase)
         .mount("/", routes::assets::routes())
         .mount("/", routes::spa::routes())
+        .mount("/", routes::desktop::routes())
         .mount("/api/v1", routes::api::routes())
         .register("/", routes::catchers::all()))
 }

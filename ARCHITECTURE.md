@@ -30,6 +30,8 @@ nrzMail ist ein einziges Rust-Programm. Es liefert die API, die Oberfläche (ein
 └─────────────────────────────┘                        └──────────────────┘
 ```
 
+Die macOS-App (`macos/`, tao/wry/muda wie nrzX) zeigt dieselbe Oberfläche in einem WKWebView mit Milchglas (`html.nrz-glass`, `html.nrz-mac` – gesetzt von Skripten der App, Stile in `ui/tailwind.css`). Sie verbindet sich entweder mit einer Server-Instanz (das Fenster lädt deren Oberfläche) oder startet den Server als Bibliothek im eigenen Prozess (`nrzmail::build()`, nur `127.0.0.1`). Für den lokalen Server setzt sie `NRZMAIL_DESKTOP_TOKEN`; nur damit gibt es `GET /__desktop/login` (`routes/desktop.rs`), das ohne Passwort anmeldet und beim ersten Mal das Konto anlegt.
+
 ## Entscheidungen
 
 | Bereich | Wahl | Warum |
