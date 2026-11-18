@@ -1,0 +1,18 @@
+# Standardwerte – jede Einstellung lässt sich mit NRZMAIL_<NAME> überschreiben,
+# z. B. NRZMAIL_PORT=9000 oder NRZMAIL_DB_KEY=… (siehe src/config.rs).
+[default]
+address = "0.0.0.0"
+port = 8330
+ident = "nrzMail"
+data_dir = "./data"
+# Importe (mbox/zip) bis 2 GiB, Nachrichten mit Anhängen bis 50 MiB
+limits = { bytes = "2GiB", file = "2GiB", data-form = "2GiB", form = "64KiB", json = "50MiB" }
+# Sauber beenden bei Ctrl-C und SIGTERM (docker stop): laufende Anfragen abschliessen,
+# dann die Datenbank schliessen.
+shutdown = { ctrlc = true, signals = ["term", "hup"], grace = 5, mercy = 5 }
+
+[debug]
+log_level = "normal"
+
+[release]
+log_level = "critical"
