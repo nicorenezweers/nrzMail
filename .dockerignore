@@ -1,0 +1,14 @@
+# Nur Quelltext in den Build-Kontext – Build-Ergebnisse, Daten und Git bleiben draussen.
+target
+**/target
+ui/dist
+data
+.git
+.github
+# Git-Worktrees der Entwicklung (jeder mit eigenem target/)
+.wt
+*.db
+*.db-*
+nrzmail.key
+**/.DS_Store
+dist*

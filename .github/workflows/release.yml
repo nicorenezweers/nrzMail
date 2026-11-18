@@ -1,0 +1,105 @@
+name: Release
+
+# Bei jedem Tag v* (oder von Hand für einen bestehenden Tag): baut das Multi-Arch-Image
+# ghcr.io/<owner>/nrz-mail:<version> (+ :latest) für linux/amd64 und linux/arm64 und schiebt
+# es in die GitHub-Registry. Rust wird im Dockerfile quer-übersetzt, QEMU ist nicht nötig.
+# Am Ende steht der Digest der Manifest-Liste in der Zusammenfassung – den braucht das
+# Umbrel-Manifest (image: …:<version>@sha256:…).
+on:
+  push:
+    tags: [ "v*" ]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Bestehender Tag, z. B. v0.1.0"
+        required: true
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    env:
+      TAG: ${{ inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.TAG }}
+
+      - name: Version und Image-Name
+        id: v
+        run: |
+          case "$TAG" in
+            v[0-9]*) ;;
+            *) echo "Tag muss mit v und einer Zahl beginnen: $TAG" >&2; exit 1 ;;
+          esac
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/nrz-mail" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # Ohne Build-Secret: Das öffentliche Image enthält keinen KI-Schlüssel (aus einem
+      # öffentlichen Image liesse er sich auslesen). Anbieter und Schlüssel kommen aus den
+      # Einstellungen oder der Umgebung. Ohne Provenance-Anhänge ist der Digest der einer
+      # reinen Manifest-Liste mit genau den beiden Plattformen.
+      - name: Image (linux/amd64, linux/arm64)
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          target: runtime
+          platforms: linux/amd64,linux/arm64
+          push: true
+          provenance: false
+          tags: |
+            ${{ steps.v.outputs.image }}:${{ steps.v.outputs.version }}
+            ${{ steps.v.outputs.image }}:latest
+          labels: |
+            org.opencontainers.image.title=nrzMail
+            org.opencontainers.image.description=Self-hosted mail client and mail archive written in Rust
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.version=${{ steps.v.outputs.version }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.licenses=AGPL-3.0-or-later
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Digest der Manifest-Liste
+        env:
+          REF: ${{ steps.v.outputs.image }}:${{ steps.v.outputs.version }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          docker buildx imagetools inspect "$REF" | tee inspect.txt
+          listed=$(awk '/^Digest:/ { print $2; exit }' inspect.txt)
+          if [ "$listed" != "$DIGEST" ]; then
+            echo "Digest weicht ab: Build $DIGEST, Registry $listed" >&2
+            exit 1
+          fi
+          for arch in amd64 arm64; do
+            grep -q "linux/$arch" inspect.txt || { echo "linux/$arch fehlt" >&2; exit 1; }
+          done
+          {
+            echo "## $REF"
+            echo
+            echo "Manifest-Liste (linux/amd64, linux/arm64):"
+            echo
+            echo '```'
+            echo "$REF@$DIGEST"
+            echo '```'
+            echo
+            echo '<details><summary>imagetools inspect</summary>'
+            echo
+            echo '```'
+            cat inspect.txt
+            echo '```'
+            echo '</details>'
+          } >> "$GITHUB_STEP_SUMMARY"

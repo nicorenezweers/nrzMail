@@ -1,0 +1,9 @@
+/target
+/data
+.DS_Store
+*.db
+*.db-*
+nrzmail.key
+/dist*
+/.wt
+/shared/Cargo.lock

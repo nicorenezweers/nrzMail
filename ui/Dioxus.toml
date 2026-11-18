@@ -1,0 +1,22 @@
+[application]
+name = "nrzmail-ui"
+default_platform = "web"
+asset_dir = "assets"
+
+[web.app]
+title = "nrzMail"
+
+[web.resource]
+style = []
+script = []
+
+[web.resource.dev]
+style = []
+script = []
+
+# Beim Entwickeln (dx serve) gehen API und statische Dateien an den laufenden Rocket-Server.
+[[web.proxy]]
+backend = "http://localhost:8330/api/"
+
+[[web.proxy]]
+backend = "http://localhost:8330/static/"

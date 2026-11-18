@@ -1,0 +1,148 @@
+From anna@example.ch Mon Mar  3 08:15:00 2025
+From: =?UTF-8?Q?Anna_M=C3=BCller?= <anna@example.ch>
+To: Nico Renezweers <nico@example.ch>
+Subject: =?UTF-8?Q?Gr=C3=BCsse_aus_Z=C3=BCrich?=
+Date: Mon, 3 Mar 2025 09:15:00 +0100
+Message-ID: <gruss-1@example.ch>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+
+Hallo Nico,
+
+liebe Gr=C3=BCsse aus Z=C3=BCrich! Treffen wir uns n=C3=A4chste Woche zum =
+Mittagessen?
+
+>From the start: ich habe am Dienstag Zeit.
+
+Anna
+
+From nico@example.ch Mon Mar  3 10:02:00 2025
+From: Nico Renezweers <nico@example.ch>
+To: =?UTF-8?Q?Anna_M=C3=BCller?= <anna@example.ch>
+Subject: =?UTF-8?Q?Re:_Gr=C3=BCsse_aus_Z=C3=BCrich?=
+Date: Mon, 3 Mar 2025 11:02:00 +0100
+Message-ID: <gruss-2@example.ch>
+In-Reply-To: <gruss-1@example.ch>
+References: <gruss-1@example.ch>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Hoi Anna
+
+Dienstag passt mir gut. 12 Uhr beim Bellevue?
+
+Nico
+
+Am 03.03.2025 um 09:15 schrieb Anna Müller <anna@example.ch>:
+> Hallo Nico,
+> liebe Grüsse aus Zürich!
+
+From anna@example.ch Mon Mar  3 13:40:00 2025
+From: =?UTF-8?Q?Anna_M=C3=BCller?= <anna@example.ch>
+To: Nico Renezweers <nico@example.ch>
+Cc: Bruno Meier <bruno@example.com>
+Subject: =?UTF-8?Q?Re:_Re:_Gr=C3=BCsse_aus_Z=C3=BCrich?=
+Date: Mon, 3 Mar 2025 14:40:00 +0100
+Message-ID: <gruss-3@example.ch>
+In-Reply-To: <gruss-2@example.ch>
+References: <gruss-1@example.ch> <gruss-2@example.ch>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Super, bis Dienstag! Bruno kommt auch mit.
+
+>>From quoted: so steht es im Kalender.
+
+From news@shop.example Fri Nov 15 06:00:00 2024
+From: Velo-Shop Newsletter <news@shop.example>
+To: nico@example.ch
+Subject: Herbst-Aktion: 20% auf alle Velohelme
+Date: Fri, 15 Nov 2024 07:00:00 +0100
+Message-ID: <nl-2024-11@shop.example>
+List-Id: Velo-Shop <news.shop.example>
+List-Unsubscribe: <mailto:unsubscribe@shop.example?subject=abmelden>, <https://shop.example/abmelden?id=42>
+Precedence: bulk
+MIME-Version: 1.0
+Content-Type: multipart/related; boundary="REL"
+
+--REL
+Content-Type: text/html; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+<html><head><style>.titel{color:#222;background:url(https://track.shop.example/bg.png)}</style><script>alert('x')</script></head>
+<body><img src="cid:logo@shop.example" alt="Logo"><h1 class="titel" onclick="steal()">Herbst-Aktion</h1>
+<p>Nur bis Sonntag: <b>20% Rabatt</b> auf alle Velohelme. M&uuml;tzen gibt es gratis dazu.</p>
+<img src="https://track.shop.example/pixel.gif?u=42" width="1" height="1">
+<a href="javascript:alert(1)">Gewinnspiel</a> <a href="https://shop.example/aktion">Zum Shop</a>
+<form action="https://shop.example/login"><input name="pw"></form>
+</body></html>
+--REL
+Content-Type: image/png
+Content-ID: <logo@shop.example>
+Content-Transfer-Encoding: base64
+
+iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9
+awAAAABJRU5ErkJggg==
+--REL--
+
+From rechnung@swisscom.example Tue Oct 15 05:30:00 2024
+From: Swisscom <rechnung@swisscom.example>
+To: nico@example.ch
+Subject: Ihre Rechnung Oktober 2024
+Date: Tue, 15 Oct 2024 07:30:00 +0200
+Message-ID: <rechnung-10-2024@swisscom.example>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="MIX"
+
+--MIX
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 8bit
+
+Guten Tag
+
+Im Anhang finden Sie Ihre Rechnung über CHF 89.90. Zahlbar bis 14.11.2024.
+
+Freundliche Grüsse
+Swisscom
+--MIX
+Content-Type: application/pdf; name="Rechnung-2024-10.pdf"
+Content-Disposition: attachment; filename="Rechnung-2024-10.pdf"
+Content-Transfer-Encoding: base64
+
+JVBERi0xLjQKMSAwIG9iaiA8PCAvVHlwZSAvQ2F0YWxvZyA+PiBlbmRvYmoKdHJhaWxlciA8PCAv
+Um9vdCAxIDAgUiA+PgolJUVPRgo=
+--MIX--
+
+From messages-noreply@linkedin.com Wed Jan  8 21:30:00 2025
+From: LinkedIn <messages-noreply@linkedin.com>
+To: Nico Renezweers <nico@example.ch>
+Subject: Sie haben 3 neue Kontaktanfragen
+Date: Wed, 8 Jan 2025 22:30:00 +0100
+Message-ID: <li-123@linkedin.com>
+List-Unsubscribe: <https://www.linkedin.com/e/unsub>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+
+Hallo Nico, 3 Personen möchten sich mit Ihnen vernetzen.
+
+From noreply@github.example Thu Jun 12 09:00:00 2025
+From: GitHub <noreply@github.example>
+To: nico@example.ch
+Subject: [nrzMail] Neuer Pull Request #7
+Date: Thu, 12 Jun 2025 11:00:00 +0200
+Message-ID: <pr-7@github.example>
+Auto-Submitted: auto-generated
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+
+Ein neuer Pull Request wartet auf Ihre Prüfung.
+
+From MAILER-DAEMON Sat Feb  1 12:00:00 2025
+Subject: Notiz ohne Absender
+X-Kaputt: ja
+
+K�se und Br�tchen, ohne Zeichensatz.
+

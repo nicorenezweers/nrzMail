@@ -1,0 +1,26 @@
+# Beispiel: docker compose up -d → http://localhost:8330
+# Den Datenbank-Schlüssel sicher aufbewahren: ohne ihn ist die Datenbank nicht lesbar.
+services:
+  nrzmail:
+    build: .
+    image: nrzmail:latest   # oder fertig: ghcr.io/nicorenezweers/nrz-mail:<version>
+    container_name: nrzmail
+    restart: unless-stopped
+    ports:
+      - "8330:8330"
+    environment:
+      TZ: Europe/Zurich
+      # Leer lassen → Schlüssel wird erzeugt und in /data/nrzmail.key abgelegt.
+      # Besser: eigener Schlüssel (64 Hex-Zeichen oder eine lange Passphrase), getrennt vom Volume gesichert.
+      NRZMAIL_DB_KEY: ${NRZMAIL_DB_KEY:-}
+      # Hinter HTTPS (Reverse Proxy) einschalten:
+      NRZMAIL_COOKIE_SECURE: "false"
+      # KI-Anbieter auch hier möglich (sonst in der Oberfläche unter Einstellungen → KI):
+      # NRZMAIL_AI_PROVIDER: openai
+      # NRZMAIL_AI_KEY: sk-…
+    volumes:
+      - nrzmail-data:/data
+    stop_grace_period: 15s
+
+volumes:
+  nrzmail-data:

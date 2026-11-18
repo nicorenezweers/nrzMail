@@ -1,0 +1,28 @@
+name: Rust
+
+# Server übersetzen und alle Tests laufen lassen. Die Oberfläche (WebAssembly) baut erst das
+# Docker-Image beim Release – build.rs kommt ohne sie aus.
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust-Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Build
+        run: cargo build --locked
+
+      - name: Tests
+        run: cargo test --locked

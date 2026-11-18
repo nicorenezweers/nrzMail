@@ -1,0 +1,16 @@
+{
+  "name": "nrzMail",
+  "short_name": "nrzMail",
+  "description": "Selbst gehosteter Mail-Client und Mail-Archiv",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#1f1f1f",
+  "theme_color": "#1f1f1f",
+  "lang": "de",
+  "icons": [
+    { "src": "/static/icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/static/favicon-32.png", "sizes": "32x32", "type": "image/png" }
+  ]
+}
