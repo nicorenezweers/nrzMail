@@ -10,6 +10,10 @@
 //!   App meldet sich dort mit einem Token an, das nur sie kennt (`/__desktop/login`) – kein
 //!   Passwort, kein Einrichten. So geht nrzMail auch ganz ohne Server.
 //!
+//! * **Updates**: Die App fragt die Releases des Repositorys in nrzGit ab (`v<version>` mit DMG),
+//!   zeigt unten links „Update installieren“, lädt die DMG, ersetzt das Bundle und startet neu
+//!   (siehe `updater`).
+//!
 //! Umschalten über das Menü „nrzMail“ (Mit Server verbinden …, Server verwenden, Lokal verwenden).
 //! Einstellungen der App: `settings` (`app.json`).
 
@@ -17,6 +21,7 @@ mod lights;
 mod overlay;
 mod server;
 mod settings;
+mod updater;
 
 use muda::{AboutMetadata, CheckMenuItem, Menu, MenuEvent, MenuItem, PredefinedMenuItem, Submenu};
 use overlay::Page;
@@ -43,6 +48,19 @@ enum UserEvent {
     /// Das Hauptfenster hat eine fremde Seite geladen: im Browser öffnen, Oberfläche zurückholen
     Escaped(String),
     WebContentTerminated(WindowId),
+    /// Ergebnis einer Update-Prüfung; `manual` = über das Menü angestossen
+    UpdateChecked { result: Result<Option<updater::Update>, String>, manual: bool },
+    Progress(f64),
+    Downloaded(Result<PathBuf, String>),
+}
+
+/// Zustand des Updaters.
+#[derive(Default)]
+struct UpdateState {
+    available: Option<updater::Update>,
+    busy: bool,
+    /// Version, zu der schon eine Mitteilung kam
+    notified: Option<semver::Version>,
 }
 
 /// Warum der Server geprüft wird.
@@ -99,6 +117,8 @@ struct MenuIds {
     use_server: CheckMenuItem,
     use_local: CheckMenuItem,
     reload: MenuItem,
+    check: MenuItem,
+    install: MenuItem,
     quit: MenuItem,
 }
 
@@ -119,6 +139,8 @@ fn main() {
             return;
         }
     };
+
+    updater::cleanup();
 
     // Umgebung des lokalen Servers vor allen weiteren Threads setzen
     let local_port = server::prepare_env();
@@ -196,6 +218,34 @@ fn main() {
             });
         }
     };
+
+    // Updates: kurz nach dem Start, danach alle paar Stunden
+    {
+        let p = proxy.clone();
+        rt.spawn(async move {
+            tokio::time::sleep(Duration::from_secs(5)).await;
+            loop {
+                let result = updater::check(&updater::current_version()).await;
+                if let Err(e) = &result {
+                    tracing::warn!("Update-Prüfung: {e}");
+                }
+                let _ = p.send_event(UserEvent::UpdateChecked { result, manual: false });
+                tokio::time::sleep(updater::CHECK_INTERVAL).await;
+            }
+        });
+    }
+    let check_now = {
+        let proxy = proxy.clone();
+        let handle = rt.handle().clone();
+        move || {
+            let p = proxy.clone();
+            handle.spawn(async move {
+                let result = updater::check(&updater::current_version()).await;
+                let _ = p.send_event(UserEvent::UpdateChecked { result, manual: true });
+            });
+        }
+    };
+    let mut updates = UpdateState::default();
 
     // Erste Seite je nach Modus
     let mut showing = Showing::AppPage;
@@ -341,7 +391,15 @@ fn main() {
                         tracing::warn!("Nachricht aus fremder Seite ignoriert");
                         return;
                     }
-                    if msg == "window:drag" {
+                    if msg == "update:install" {
+                        start_download(&rt, &proxy, &mut updates, &main_window);
+                    } else if msg == "update:state" {
+                        if let (Some((_, wv)), Some(u), false) = (&main_window, &updates.available, updates.busy) {
+                            update_ui(wv, "available", &u.version.to_string());
+                        }
+                    } else if msg == "update:check" {
+                        check_now();
+                    } else if msg == "window:drag" {
                         if let Some((w, _)) = &main_window {
                             let _ = w.drag_window();
                         }
@@ -396,6 +454,67 @@ fn main() {
                         }
                     }
                 }
+                UserEvent::UpdateChecked { result, manual } => match result {
+                    Ok(Some(u)) => {
+                        ids.install.set_text(format!("Update auf {} installieren …", u.version));
+                        ids.install.set_enabled(true);
+                        if !updates.busy {
+                            update_main(&main_window, "available", &u.version.to_string());
+                        }
+                        if manual {
+                            if let Some((w, _)) = &main_window {
+                                w.set_visible(true);
+                                w.set_focus();
+                            }
+                        } else if updates.notified.as_ref() != Some(&u.version) {
+                            native_notify("Update verfügbar", &format!("nrzMail {} ist da – unten links im Fenster installieren.", u.version));
+                            updates.notified = Some(u.version.clone());
+                        }
+                        updates.available = Some(u);
+                        // NRZMAIL_AUTO_UPDATE=1: ohne Rückfrage laden und installieren
+                        if std::env::var("NRZMAIL_AUTO_UPDATE").is_ok_and(|v| v == "1") {
+                            start_download(&rt, &proxy, &mut updates, &main_window);
+                        }
+                    }
+                    Ok(None) => {
+                        if manual {
+                            update_main(&main_window, "current", &updater::current_version().to_string());
+                            message("Keine Updates", &format!("nrzMail {} ist die neueste Version.", updater::current_version()), rfd::MessageLevel::Info);
+                        }
+                    }
+                    Err(e) => {
+                        if manual {
+                            message("Update-Prüfung fehlgeschlagen", &e, rfd::MessageLevel::Warning);
+                        }
+                    }
+                },
+                UserEvent::Progress(p) => update_main(&main_window, "progress", &p.to_string()),
+                UserEvent::Downloaded(Err(e)) => {
+                    updates.busy = false;
+                    tracing::error!("Update: {e}");
+                    update_main(&main_window, "failed", &e);
+                }
+                UserEvent::Downloaded(Ok(dmg)) => {
+                    update_main(&main_window, "installing", "");
+                    match updater::install(&dmg) {
+                        Ok(updater::Installed::Replaced(bundle)) => {
+                            tracing::info!("Update installiert, Neustart");
+                            updater::relaunch_after_exit(&bundle);
+                            quit(control_flow);
+                        }
+                        Ok(updater::Installed::OpenedDmg(text)) => {
+                            updates.busy = false;
+                            if let Some(u) = &updates.available {
+                                update_main(&main_window, "available", &u.version.to_string());
+                            }
+                            message("Update bereit", &text, rfd::MessageLevel::Info);
+                        }
+                        Err(e) => {
+                            updates.busy = false;
+                            update_main(&main_window, "failed", &e);
+                        }
+                    }
+                }
                 UserEvent::OpenWindow(url) => {
                     open_window(target, &proxy, &origins, &mut extra, &url);
                 }
@@ -421,6 +540,10 @@ fn main() {
                         refresh_menu(&ids, &settings);
                     } else if id == ids.use_local.id() {
                         use_local(&mut settings, &ids, &main_window, local_port, local_error.as_deref(), &mut want_local, &mut showing);
+                    } else if id == ids.check.id() {
+                        check_now();
+                    } else if id == ids.install.id() {
+                        start_download(&rt, &proxy, &mut updates, &main_window);
                     } else if id == ids.reload.id() {
                         match (&showing, settings.server.clone()) {
                             (Showing::AppPage, Some(base)) if settings.mode == Mode::Server => probe(base, Probe::Open),
@@ -495,6 +618,7 @@ fn build_webview_at(window: &Window, proxy: &EventLoopProxy<UserEvent>, origins:
         .with_initialization_script_for_main_only(if is_main { overlay::WINDOW_SCRIPT } else { "" }, true)
         .with_initialization_script_for_main_only(if is_main { overlay::GLASS_SCRIPT } else { "" }, true)
         .with_initialization_script_for_main_only(if is_main { overlay::NATIVE_SCRIPT } else { "" }, true)
+        .with_initialization_script_for_main_only(if is_main { overlay::UPDATE_SCRIPT } else { "" }, true)
         .with_transparent(is_main)
         .with_ipc_handler(move |req| {
             // Nur Seiten der App (about:), des lokalen und des verbundenen Servers steuern die App
@@ -623,12 +747,57 @@ fn content_view(window: &Window) -> Option<ContentView> {
     std::ptr::NonNull::new(objc2::rc::Retained::as_ptr(&view) as *mut std::ffi::c_void).map(ContentView)
 }
 
+/// Stand des Updates an den Hinweis unten links (`overlay::UPDATE_SCRIPT`).
+fn update_ui(wv: &WebView, status: &str, text: &str) {
+    let _ = wv.evaluate_script(&format!(
+        "window.__nrzUpdateState && window.__nrzUpdateState({}, {})",
+        overlay::js_str(status),
+        overlay::js_str(text)
+    ));
+}
+
+fn update_main(main: &Option<(Window, WebView)>, status: &str, text: &str) {
+    if let Some((_, wv)) = main {
+        update_ui(wv, status, text);
+    }
+}
+
+/// DMG laden (Fortschritt in ganzen Prozenten an den Hinweis).
+fn start_download(rt: &tokio::runtime::Runtime, proxy: &EventLoopProxy<UserEvent>, updates: &mut UpdateState, main: &Option<(Window, WebView)>) {
+    let Some(u) = updates.available.clone() else { return };
+    if updates.busy {
+        return;
+    }
+    updates.busy = true;
+    if let Some((w, wv)) = main {
+        w.set_visible(true);
+        update_ui(wv, "progress", "0");
+    }
+    let p = proxy.clone();
+    rt.spawn(async move {
+        let pp = p.clone();
+        let last = Mutex::new(-1i64);
+        let r = updater::download(&u, move |f| {
+            let step = if f < 0.0 { -1 } else { (f * 100.0) as i64 };
+            let mut l = last.lock().unwrap();
+            if *l != step {
+                *l = step;
+                let _ = pp.send_event(UserEvent::Progress(f));
+            }
+        })
+        .await;
+        let _ = p.send_event(UserEvent::Downloaded(r));
+    });
+}
+
 fn build_menu() -> (Menu, MenuIds) {
     let ids = MenuIds {
         connect: MenuItem::new("Mit Server verbinden …", true, Some("CmdOrCtrl+Shift+K".parse().unwrap())),
         use_server: CheckMenuItem::new("Server verwenden", false, false, None),
         use_local: CheckMenuItem::new("Lokal verwenden (ohne Server)", true, false, None),
         reload: MenuItem::new("Neu laden", true, Some("CmdOrCtrl+R".parse().unwrap())),
+        check: MenuItem::new("Nach Updates suchen …", true, None),
+        install: MenuItem::new("Update installieren …", false, None),
         quit: MenuItem::new("nrzMail beenden", true, Some("CmdOrCtrl+Q".parse().unwrap())),
     };
     let about = AboutMetadata {
@@ -643,6 +812,9 @@ fn build_menu() -> (Menu, MenuIds) {
         true,
         &[
             &PredefinedMenuItem::about(Some("Über nrzMail"), Some(about)),
+            &PredefinedMenuItem::separator(),
+            &ids.check,
+            &ids.install,
             &PredefinedMenuItem::separator(),
             &ids.connect,
             &ids.use_server,

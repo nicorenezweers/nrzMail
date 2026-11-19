@@ -272,3 +272,64 @@ mod tests {
         assert_eq!(super::b64(b"M"), "TQ==");
     }
 }
+
+/// Hinweis auf ein Update unten links im Fenster – auf jeder Seite (lokal, Server, Seiten der App),
+/// unabhängig von der Version des Servers. Die App meldet den Stand über
+/// `window.__nrzUpdateState(status, text)`: `available` (Version), `progress` (0–1, -1 unbekannt),
+/// `installing`, `failed` (Text), `current` (Version, nach einer Prüfung von Hand), `hidden`.
+/// Ein Klick schickt `update:install` (bei `failed` erneut).
+pub const UPDATE_SCRIPT: &str = r#"
+(function () {
+  if (window.__nrzUpdateState) return;
+  function send(m) { try { window.ipc.postMessage(m); } catch (e) {} }
+  var css = '#nrz-update{position:fixed;left:12px;bottom:12px;z-index:2147483000;display:flex;align-items:center;gap:8px;max-width:240px;padding:8px 13px 8px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.16);background:rgba(36,36,40,.72);color:#fafafa;font:600 12.5px -apple-system,BlinkMacSystemFont,"Inter",sans-serif;box-shadow:0 12px 30px -12px rgba(0,0,0,.7);-webkit-backdrop-filter:blur(24px) saturate(170%);cursor:default;-webkit-user-select:none;transition:transform .15s,background .15s;animation:nrzUpIn .25s ease-out}'
+    + '#nrz-update:hover{background:rgba(52,52,58,.82);transform:translateY(-1px)}'
+    + '#nrz-update .dot{width:8px;height:8px;border-radius:50%;background:#4ade80;box-shadow:0 0 0 3px rgba(74,222,128,.22);flex:none}'
+    + '#nrz-update.err .dot{background:#f87171;box-shadow:0 0 0 3px rgba(248,113,113,.22)}'
+    + '#nrz-update .bar{position:absolute;left:12px;right:12px;bottom:3px;height:2px;border-radius:2px;background:rgba(255,255,255,.12);overflow:hidden}'
+    + '#nrz-update .bar i{display:block;height:100%;background:#fafafa;width:0;transition:width .2s}'
+    + '#nrz-update .x{margin-left:2px;opacity:.55;font-weight:400;padding:0 2px}'
+    + '#nrz-update .x:hover{opacity:1}'
+    + '@keyframes nrzUpIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}';
+  var state = null, el = null, hideTimer = null;
+  function ensure() {
+    if (!document.body) return null;
+    if (!document.getElementById('nrz-update-css')) {
+      var s = document.createElement('style'); s.id = 'nrz-update-css'; s.textContent = css;
+      (document.head || document.documentElement).appendChild(s);
+    }
+    if (!el || !el.isConnected) {
+      el = document.createElement('div'); el.id = 'nrz-update'; el.setAttribute('role', 'button');
+      el.addEventListener('click', function (e) {
+        if (e.target.classList.contains('x')) { state = null; render(); return; }
+        if (state && (state.s === 'available' || state.s === 'failed')) send('update:install');
+      });
+      document.body.appendChild(el);
+    }
+    return el;
+  }
+  function render() {
+    if (!state || state.s === 'hidden') { if (el) el.remove(); el = null; return; }
+    var e = ensure(); if (!e) return;
+    var s = state.s, t = state.t, html = '';
+    e.classList.toggle('err', s === 'failed');
+    e.style.position = 'fixed';
+    if (s === 'available') { html = '<span class="dot"></span><span>Update auf ' + esc(t) + ' installieren</span><span class="x" title="Später">✕</span>'; e.title = 'Neue Version von nrzMail laden und neu starten'; }
+    else if (s === 'progress') { var p = parseFloat(t); html = '<span class="dot"></span><span>Update wird geladen' + (p >= 0 ? ' … ' + Math.round(p * 100) + ' %' : ' …') + '</span><span class="bar"><i style="width:' + (p >= 0 ? p * 100 : 30) + '%"></i></span>'; e.title = ''; }
+    else if (s === 'installing') { html = '<span class="dot"></span><span>Wird installiert – nrzMail startet neu …</span>'; e.title = ''; }
+    else if (s === 'failed') { html = '<span class="dot"></span><span>Update fehlgeschlagen – erneut versuchen</span><span class="x" title="Schliessen">✕</span>'; e.title = t; }
+    else if (s === 'current') { html = '<span class="dot"></span><span>nrzMail ' + esc(t) + ' ist aktuell</span>'; e.title = ''; }
+    e.innerHTML = html;
+  }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  window.__nrzUpdateState = function (s, t) {
+    state = { s: s, t: t };
+    clearTimeout(hideTimer);
+    if (s === 'current') hideTimer = setTimeout(function () { state = null; render(); }, 4000);
+    if (document.body) render(); else document.addEventListener('DOMContentLoaded', render);
+  };
+  // Seite (neu) geladen: ein schon gefundenes Update holt sich der Hinweis selbst
+  function ask() { send('update:state'); }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ask); else ask();
+})();
+"#;
