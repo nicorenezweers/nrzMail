@@ -211,6 +211,11 @@ pub const NATIVE_SCRIPT: &str = r#"
   var css = 'img,svg,a,video,canvas{-webkit-user-drag:none}'
     + 'button,[role=button],[role=menuitem],[role=tab],[role=option],label,nav,svg,[data-drag],.nrz-titlebar{-webkit-user-select:none;user-select:none}'
     + 'html,body{overscroll-behavior:none}'
+    // Wie eine App: Bedienoberfläche nicht markierbar, Pfeil statt Hand; markierbar bleiben
+    // Eingaben, Mailtexte und der Kopf einer geöffneten Mail
+    + 'body{-webkit-user-select:none;user-select:none;cursor:default}'
+    + 'input,textarea,[contenteditable],.mail-text,.mail-text *,article,article *,header h1,header h2,[data-selectable],[data-selectable] *{-webkit-user-select:text;user-select:text}'
+    + 'a,[role=link],button{cursor:default}'
     + 'aside a,nav a{-webkit-user-select:none;user-select:none}'
     + ':focus:not(:focus-visible){outline:none}';
   function style() {

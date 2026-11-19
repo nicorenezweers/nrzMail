@@ -1,8 +1,9 @@
 //! nrzMail als native macOS-App – komplett in Rust, im Stil von nrzX: durchsichtiges Fenster mit
 //! dem Milchglas von macOS dahinter, Titelleiste in der Oberfläche (Ampel über der Seitenleiste).
 //!
-//! * **Mit Server** (empfohlen): Das Fenster zeigt die Oberfläche einer nrzMail-Instanz (z. B. auf
-//!   dem Umbrel). Postfächer, Mails, KI und Einstellungen kommen vom Server – nichts muss in der App
+//! * **Mit Server** (empfohlen): Das Fenster zeigt immer die eigene, eingebettete Oberfläche der
+//!   App; die Daten kommen über einen Proxy (`proxy`) von der nrzMail-Instanz (z. B. auf dem Umbrel) –
+//!   nie deren Webseite. Postfächer, Mails, KI und Einstellungen kommen vom Server – nichts muss in der App
 //!   neu verbunden werden; die Anmeldung merkt sich WebKit. Ist der Server nicht erreichbar, bietet
 //!   die App an, lokal weiterzuarbeiten, und versucht es selbst wieder.
 //! * **Lokal**: Ein eigener nrzMail-Server läuft im selben Prozess auf `127.0.0.1` (Daten in
@@ -19,6 +20,7 @@
 
 mod lights;
 mod overlay;
+mod proxy;
 mod server;
 mod settings;
 mod updater;
@@ -95,19 +97,11 @@ impl Origins {
         self.local.as_deref() == Some(o.as_str()) || self.server.as_deref() == Some(o.as_str())
     }
 
-    /// Darf das Hauptfenster diese Seite zeigen? Eigene Ursprünge und – für Anmeldeseiten davor,
-    /// etwa die des Umbrel – derselbe Rechner wie der Server.
+    /// Darf das Hauptfenster diese Seite zeigen? Nur die eigene Oberfläche (lokaler Server bzw.
+    /// Proxy zum verbundenen Server) – nie eine Webseite.
     fn allowed(&self, url: &str) -> bool {
-        self.own(url) || self.server.as_deref().and_then(host_of).is_some_and(|h| host_of(url).as_deref() == Some(h.as_str()))
+        self.own(url)
     }
-}
-
-fn host_of(url: &str) -> Option<String> {
-    let o = settings::origin(url)?;
-    let rest = o.split_once("://")?.1;
-    // [IPv6]:port bzw. host:port
-    let host = if rest.starts_with('[') { rest.split(']').next().map(|h| format!("{h}]"))? } else { rest.split(':').next()?.to_string() };
-    Some(host)
 }
 
 type Shared = Arc<Mutex<Origins>>;
@@ -176,10 +170,19 @@ fn main() {
     window.set_theme(Some(tao::window::Theme::Dark));
     let main_id = window.id();
 
-    let origins: Shared = Arc::new(Mutex::new(Origins {
-        local: None,
-        server: settings.server.as_deref().and_then(settings::origin),
-    }));
+    // Server-Modus: eigene Oberfläche der App, Daten über den Proxy vom Server
+    let remote = proxy::Remote::new();
+    if settings.mode == Mode::Server {
+        remote.set_base(settings.server.clone());
+    }
+    let proxy_url = match proxy::start(remote.clone()) {
+        Ok(p) => format!("http://127.0.0.1:{p}"),
+        Err(e) => {
+            message("nrzMail", &format!("Interner Fehler: {e}"), rfd::MessageLevel::Error);
+            return;
+        }
+    };
+    let origins: Shared = Arc::new(Mutex::new(Origins { local: None, server: Some(proxy_url.clone()) }));
     let webview = build_webview(&window, &proxy, origins.clone(), true).expect("WebView");
     // Erst jetzt: wry setzt eine eigene Inhaltsansicht ein, das Milchglas gehört darunter
     if !apply_glass(&window) {
@@ -340,10 +343,10 @@ fn main() {
                             settings.server = Some(base.clone());
                             settings.save();
                             refresh_menu(&ids, &settings);
-                            origins.lock().unwrap().server = settings::origin(&base);
+                            remote.set_base(Some(base.clone()));
                             want_local = false;
                             if let Some((w, wv)) = &main_window {
-                                let _ = wv.load_url(&format!("{base}/"));
+                                let _ = wv.load_url(&format!("{proxy_url}/"));
                                 w.set_focus();
                             }
                             showing = Showing::Server;
@@ -447,8 +450,8 @@ fn main() {
                             (Showing::Local, Some(p), _) => {
                                 let _ = wv.load_url(&server::login_url(p));
                             }
-                            (Showing::Server, _, Some(base)) => {
-                                let _ = wv.load_url(&format!("{base}/"));
+                            (Showing::Server, _, Some(_)) => {
+                                let _ = wv.load_url(&format!("{proxy_url}/"));
                             }
                             _ => {}
                         }
@@ -946,11 +949,10 @@ mod tests {
 
     #[test]
     fn origins_allow() {
-        let o = Origins { local: Some("http://127.0.0.1:18330".into()), server: Some("http://umbrel.local:8330".into()) };
+        let o = Origins { local: Some("http://127.0.0.1:18330".into()), server: Some("http://127.0.0.1:50123".into()) };
         assert!(o.own("http://127.0.0.1:18330/mail"));
-        assert!(o.own("http://umbrel.local:8330/"));
-        assert!(!o.own("http://umbrel.local/login"));
-        assert!(o.allowed("http://umbrel.local/login"));
+        assert!(o.own("http://127.0.0.1:50123/"));
+        assert!(!o.allowed("http://umbrel.local/login"));
         assert!(!o.allowed("https://evil.example/"));
         assert!(!o.allowed("http://127.0.0.1:9999/"));
     }
