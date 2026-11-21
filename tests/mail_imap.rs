@@ -430,8 +430,8 @@ async fn actions_reach_the_server() {
     assert!(e.server_subjects("INBOX").is_empty());
     assert_eq!(
         e.list("view=all&q=hallo").await["total"],
-        1,
-        "Hallo 1 (Hallo 2 liegt im Papierkorb)"
+        2,
+        "Hallo 1 und Hallo 2 (im Papierkorb, „Alle“ zeigt wirklich alles)"
     );
 
     // Papierkorb-Frist: endgültig gelöscht, auch auf dem Server

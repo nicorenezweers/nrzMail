@@ -333,6 +333,7 @@ fn Row(
                             span { class: "text-muted-foreground", " – {m.snippet}" }
                         }
                     }
+                    if !m.otp_code.is_empty() { CodeChip { code: m.otp_code.clone(), small: true } }
                     if m.has_attachments { icons::Paperclip { class: "size-3.5 shrink-0 text-muted-foreground" } }
                     span { class: "shrink-0 text-xs tabular-nums text-muted-foreground", title: "{date_title}", {util::relative(m.date)} }
                 }
@@ -361,12 +362,45 @@ fn Row(
                             Pill { "{c.label()}" }
                         }
                     }
+                    if !m.otp_code.is_empty() {
+                        div { class: "py-1", CodeChip { code: m.otp_code.clone(), small: false } }
+                    }
                     if snippets && !m.snippet.is_empty() {
                         p { class: if phone { "line-clamp-2 text-[14px] leading-snug text-muted-foreground" } else { "line-clamp-2 text-[13px] leading-snug text-muted-foreground" }, "{m.snippet}" }
                     }
                 }
             }
         }
+        }
+    }
+}
+
+/// Erkannter 2FA-Code, gross und gut lesbar; Klick kopiert ihn (ohne die Nachricht zu öffnen).
+#[component]
+pub fn CodeChip(code: String, small: bool) -> Element {
+    let mut copied = use_signal(|| false);
+    let shown = util::group_code(&code);
+    let size = if small { "px-1.5 py-0.5 text-xs" } else { "px-2.5 py-1 text-lg" };
+    rsx! {
+        button { class: "inline-flex shrink-0 items-center gap-1.5 rounded-md border border-primary/30 bg-primary/10 font-mono font-semibold tracking-wider tabular-nums text-foreground hover:bg-primary/20 {size}",
+            title: "Code kopieren", "aria-label": "Code {code} kopieren",
+            onclick: move |e| {
+                e.stop_propagation();
+                util::copy_text(&code);
+                copied.set(true);
+                crate::components::overlay::toast("Code kopiert");
+                spawn(async move {
+                    gloo_timers::future::TimeoutFuture::new(1_500).await;
+                    copied.set(false);
+                });
+            },
+            icons::KeyRound { class: if small { "size-3 text-muted-foreground" } else { "size-4 text-muted-foreground" } }
+            "{shown}"
+            if copied() {
+                icons::Check { class: if small { "size-3 text-primary" } else { "size-4 text-primary" } }
+            } else {
+                icons::Copy { class: if small { "size-3 text-muted-foreground" } else { "size-4 text-muted-foreground" } }
+            }
         }
     }
 }

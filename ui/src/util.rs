@@ -203,6 +203,20 @@ pub fn vibrate(ms: u32) {
     dioxus::prelude::document::eval(&format!("try {{ navigator.vibrate && navigator.vibrate({ms}); }} catch (e) {{}}"));
 }
 
+/// Text in die Zwischenablage (mit Ausweg über ein verstecktes Textfeld, falls die
+/// Zwischenablage-Schnittstelle fehlt oder abgelehnt wird).
+pub fn copy_text(text: &str) {
+    dioxus::prelude::document::eval(&format!(
+        "(() => {{ const t = {text:?}; const fb = () => {{ const a = document.createElement('textarea'); a.value = t; a.style.position = 'fixed'; a.style.opacity = '0'; document.body.appendChild(a); a.select(); try {{ document.execCommand('copy'); }} catch (e) {{}} a.remove(); }}; try {{ navigator.clipboard ? navigator.clipboard.writeText(t).catch(fb) : fb(); }} catch (e) {{ fb(); }} }})()"
+    ));
+}
+
+/// Code zum Lesen gruppieren: „123 456“ bzw. „1234 5678“.
+pub fn group_code(code: &str) -> String {
+    let half = code.len() / 2;
+    if code.len() >= 6 && code.is_ascii() { format!("{} {}", &code[..half], &code[half..]) } else { code.to_string() }
+}
+
 pub fn focus(id: &str) {
     dioxus::prelude::document::eval(&format!(
         "requestAnimationFrame(() => {{ const e = document.getElementById({id:?}); if (e) {{ e.focus(); if (e.select) e.select(); }} }})"

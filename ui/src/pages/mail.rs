@@ -118,7 +118,8 @@ pub fn Mail(query: MailQuery) -> Element {
 
     // Liste laden: neuer Filter → leeren und neu; gleicher Filter (Auffrischen) → im Hintergrund
     let q_load = query.clone();
-    let drafts_view = mail_view == MailView::Drafts && !in_folder && !searching;
+    // Entwürfe, geplante und fehlgeschlagene Nachrichten aus nrzMail stehen über „Gesendet“
+    let drafts_view = matches!(mail_view, MailView::Drafts | MailView::Sent) && !in_folder && !searching;
     use_effect(use_reactive!(|key, refresh, drafts_view| {
         let _ = refresh;
         let soft = *last_key.peek() == key;
@@ -414,9 +415,10 @@ pub fn Mail(query: MailQuery) -> Element {
     };
     let unread_badge = match (in_folder, mail_view) {
         (true, _) => folder_obj.as_ref().map(|f| f.unread).unwrap_or(0),
-        (false, MailView::Inbox) => match account_obj.as_ref() {
-            Some(a) => state::folder_with_role(&a.id, FolderRole::Inbox).map(|f| f.unread).unwrap_or(a.unread_count),
-            None => state::unread_in_role(FolderRole::Inbox),
+        // Posteingang enthält alles Ungelesene
+        (false, MailView::Inbox | MailView::Unread) => match account_obj.as_ref() {
+            Some(a) => a.unread_count,
+            None => accounts.iter().map(|a| a.unread_count).sum(),
         },
         _ => 0,
     };
@@ -716,6 +718,7 @@ fn empty_title(view: Option<MailView>, searching: bool, cat: Option<Category>) -
         (Some(MailView::Junk), _) => "Kein Spam".into(),
         (Some(MailView::Trash), _) => "Papierkorb leer".into(),
         (Some(MailView::Drafts), _) => "Keine Entwürfe".into(),
+        (Some(MailView::TwoFactor), _) => "Keine Codes".into(),
         _ => "Keine Nachrichten".into(),
     }
 }
@@ -727,39 +730,70 @@ fn empty_text(view: Option<MailView>, searching: bool) -> String {
     match view {
         Some(MailView::Inbox) => "Alles erledigt. Neue Nachrichten erscheinen hier, sobald der Abgleich sie holt.".into(),
         Some(MailView::Starred) => "Mit dem Stern (s) markierte Nachrichten landen hier.".into(),
+        Some(MailView::TwoFactor) => "Nachrichten mit einem 6- oder 8-stelligen Anmelde- oder Bestätigungscode erscheinen hier.".into(),
         _ => "Hier ist gerade nichts.".into(),
     }
 }
 
-/// Postfach (oder alle) jetzt abgleichen.
+/// Postfach (oder alle) jetzt abgleichen. Der Pfeil dreht sich sofort beim Klick und so lange,
+/// bis der Abgleich fertig und die Liste neu geladen ist.
 #[component]
 fn SyncButton(account: Option<String>) -> Element {
+    let mut busy = use_signal(|| false);
     let syncing = match &account {
         Some(id) => ACCOUNTS.read().iter().any(|a| &a.id == id && a.syncing),
         None => ACCOUNTS.read().iter().any(|a| a.syncing),
     };
+    let spinning = busy() || syncing;
     rsx! {
-        button { class: "{btn(BTN_GHOST)} {BTN_ICON} text-muted-foreground", title: "Jetzt abgleichen", "aria-label": "Jetzt abgleichen", disabled: syncing,
-            onclick: move |_| sync_now(account.clone()),
-            icons::RefreshCw { class: if syncing { "size-4 animate-spin" } else { "size-4" } }
+        button { class: "{btn(BTN_GHOST)} {BTN_ICON} text-muted-foreground", title: "Jetzt abgleichen", "aria-label": "Jetzt abgleichen",
+            "aria-busy": "{spinning}",
+            onclick: move |_| {
+                if *busy.peek() {
+                    return;
+                }
+                busy.set(true);
+                let account = account.clone();
+                spawn(async move {
+                    sync_and_wait(account).await;
+                    busy.set(false);
+                });
+            },
+            span { class: if spinning { "grid place-items-center animate-spin" } else { "grid place-items-center" },
+                icons::RefreshCw { class: "size-4" }
+            }
         }
     }
 }
 
 /// Postfach (oder alle mit Abgleich) jetzt beim Server abgleichen.
 fn sync_now(account: Option<String>) {
-    spawn(async move {
-        let ids: Vec<String> = match account {
-            Some(id) => vec![id],
-            None => ACCOUNTS.peek().iter().filter(|a| a.kind == AccountKind::Imap && a.sync_enabled).map(|a| a.id.clone()).collect(),
-        };
-        for id in ids {
-            if let Err(e) = api::action(&format!("/accounts/{}/sync", api::enc(&id))).await {
-                toast_error(e);
-            }
+    spawn(sync_and_wait(account));
+}
+
+/// Abgleich anstossen und warten, bis er durch ist (höchstens 2 Minuten); danach Zähler und
+/// Liste neu laden. Dreht mindestens eine knappe Sekunde, damit der Klick sichtbar ist.
+async fn sync_and_wait(account: Option<String>) {
+    let started = js_sys::Date::now();
+    let ids: Vec<String> = match &account {
+        Some(id) => vec![id.clone()],
+        None => ACCOUNTS.peek().iter().filter(|a| a.kind == AccountKind::Imap && a.sync_enabled).map(|a| a.id.clone()).collect(),
+    };
+    for id in &ids {
+        if let Err(e) = api::action(&format!("/accounts/{}/sync", api::enc(id))).await {
+            toast_error(e);
         }
+    }
+    let running = |ids: &[String]| ACCOUNTS.peek().iter().any(|a| a.syncing && ids.contains(&a.id));
+    loop {
+        gloo_timers::future::TimeoutFuture::new(800).await;
         state::load_accounts().await;
-    });
+        let elapsed = js_sys::Date::now() - started;
+        if (!running(&ids) && elapsed >= 900.0) || elapsed > 120_000.0 {
+            break;
+        }
+    }
+    state::refresh_list();
 }
 
 /// „Gerade eben“, „vor 5 Min.“, sonst Uhrzeit bzw. Datum.

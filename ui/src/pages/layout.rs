@@ -149,6 +149,7 @@ fn view_icon(v: MailView) -> Element {
         MailView::Junk => rsx! { icons::ShieldAlert {} },
         MailView::Trash => rsx! { icons::Trash2 {} },
         MailView::All => rsx! { icons::Mails {} },
+        MailView::TwoFactor => rsx! { icons::KeyRound {} },
     }
 }
 
@@ -227,8 +228,8 @@ fn Sidebar(collapsed: bool) -> Element {
     let cur = current.clone();
     let badge = move |v: MailView| -> (i64, bool) {
         match v {
-            MailView::Inbox => (state::unread_in_role_of(FolderRole::Inbox, &cur), false),
-            MailView::Unread => (unread_total, true),
+            // Posteingang enthält alles Ungelesene (auch aus anderen Ordnern)
+            MailView::Inbox | MailView::Unread => (unread_total, false),
             MailView::Drafts => (state::total_in_role_of(FolderRole::Drafts, &cur), true),
             MailView::Junk => (state::unread_in_role_of(FolderRole::Junk, &cur), true),
             _ => (0, true),
@@ -282,7 +283,7 @@ fn Sidebar(collapsed: bool) -> Element {
 
         div { class: if collapsed { "min-h-0 flex-1 overflow-y-auto px-2 pb-3" } else { "min-h-0 flex-1 overflow-y-auto px-3 pb-3" },
             nav { class: "flex flex-col gap-0.5", "aria-label": "Ansichten",
-                for v in MailView::ALL {
+                for v in MailView::SIDEBAR {
                     {
                         let (n, muted) = badge(v);
                         rsx! {
@@ -333,7 +334,6 @@ fn Sidebar(collapsed: bool) -> Element {
         }
 
         div { class: if collapsed { "flex flex-col gap-0.5 border-t border-sidenav-border px-2 py-2" } else { "flex flex-col gap-0.5 border-t border-sidenav-border px-3 py-2" },
-            NavLink { to: Route::Archive {}, label: "Archiv", icon: rsx! { icons::Database {} }, collapsed, active: is_page(&Route::Archive {}) }
             NavLink { to: Route::Stats {}, label: "Statistik", icon: rsx! { icons::ChartColumn {} }, collapsed, active: is_page(&Route::Stats {}) }
             NavLink { to: Route::Settings { section: "konto".into() }, label: "Einstellungen", icon: rsx! { icons::Settings {} }, collapsed,
                 active: is_page(&Route::Settings { section: String::new() }) }

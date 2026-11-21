@@ -245,6 +245,7 @@ impl SummaryRow {
             size: self.size,
             on_server: self.on_server,
             is_sent: self.is_sent,
+            otp_code: String::new(),
         }
     }
 }

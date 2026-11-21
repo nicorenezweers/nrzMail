@@ -198,17 +198,7 @@ pub fn default_account() -> Option<MailAccount> {
         .or_else(|| accounts.first().cloned())
 }
 
-/// Ordner eines Postfachs mit einer bestimmten Rolle.
-pub fn folder_with_role(account_id: &str, role: FolderRole) -> Option<Folder> {
-    FOLDERS.read().iter().find(|f| f.account_id == account_id && f.role == role).cloned()
-}
-
-/// Summe ungelesener Nachrichten in Ordnern einer Rolle (über alle Postfächer).
-pub fn unread_in_role(role: FolderRole) -> i64 {
-    FOLDERS.read().iter().filter(|f| f.role == role).map(|f| f.unread).sum()
-}
-
-/// Wie [`unread_in_role`], mit `account` ("" = alle) nur in einem Postfach.
+/// Ungelesene in Ordnern einer Rolle; mit `account` ("" = alle) nur in einem Postfach.
 pub fn unread_in_role_of(role: FolderRole, account: &str) -> i64 {
     FOLDERS.read().iter().filter(|f| f.role == role && (account.is_empty() || f.account_id == account)).map(|f| f.unread).sum()
 }

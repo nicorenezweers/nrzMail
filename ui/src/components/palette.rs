@@ -61,7 +61,7 @@ fn commands(on_message: bool) -> Vec<Command> {
             out.push(cmd("Nachricht", label, hint, Run::Key(key)));
         }
     }
-    for v in MailView::ALL {
+    for v in MailView::SIDEBAR {
         out.push(cmd("Ansichten", v.label(), "", Run::Go(Route::view(v))));
     }
     let accounts = ACCOUNTS.peek().clone();

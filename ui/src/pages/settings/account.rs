@@ -81,8 +81,8 @@ const UNDO_CHOICES: [(u32, &str); 11] = [
 /// Wahl für das automatische Aktualisieren.
 const REFRESH_CHOICES: [(u32, &str); 7] = [
     (0, "Aus – nur im Hintergrund nach Plan"),
-    (30, "Alle 30 Sekunden"),
-    (60, "Jede Minute (Vorgabe)"),
+    (30, "Alle 30 Sekunden (Vorgabe)"),
+    (60, "Jede Minute"),
     (120, "Alle 2 Minuten"),
     (300, "Alle 5 Minuten"),
     (600, "Alle 10 Minuten"),
@@ -118,7 +118,7 @@ fn Display() -> Element {
                 Field { label: "Postfach automatisch aktualisieren", class: "max-w-sm",
                     hint: "Solange nrzMail offen ist, wird so oft beim Mail-Server nach neuen Nachrichten gefragt.",
                     select { class: SELECT,
-                        onchange: { let p = p.clone(); move |e: FormEvent| { let v = e.value().parse().unwrap_or(60); save(Preferences { auto_refresh_seconds: v, ..p.clone() }) } },
+                        onchange: { let p = p.clone(); move |e: FormEvent| { let v = e.value().parse().unwrap_or(30); save(Preferences { auto_refresh_seconds: v, ..p.clone() }) } },
                         for (secs , label) in REFRESH_CHOICES {
                             option { value: "{secs}", selected: p.auto_refresh_seconds == secs, "{label}" }
                         }

@@ -61,6 +61,12 @@ pub fn Settings(section: String) -> Element {
                         for (key , label) in visible.iter().copied().filter(|(k, _)| !admin_only(k)) {
                             SectionLink { key: "{key}", key_name: key, label, active: key == section }
                         }
+                        // Lokales Archiv (Übersicht, Import/Export) – ohne eigenen Eintrag in der Seitenleiste
+                        Link { to: Route::Archive {},
+                            class: "flex shrink-0 items-center gap-2.5 rounded-md px-2.5 py-1.5 text-sm text-muted-foreground hover:bg-accent/50 hover:text-foreground [&_svg]:size-4",
+                            icons::Database {}
+                            "Archiv & Import/Export"
+                        }
                         if admin {
                             p { class: "hidden px-2.5 pb-1 pt-4 text-xs font-medium uppercase tracking-wider text-muted-foreground lg:block", "Instanz" }
                             for (key , label) in visible.iter().copied().filter(|(k, _)| admin_only(k)) {

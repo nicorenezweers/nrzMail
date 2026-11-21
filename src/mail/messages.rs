@@ -6,7 +6,7 @@ use crate::api::{self, FolderRole, MailView, MessageQuery};
 use crate::error::{AppError, AppResult};
 use crate::mail::model::{addresses, AttachmentRow, DetailRow, SummaryRow, SUMMARY_COLUMNS};
 use crate::mail::search::{self, Search};
-use crate::mail::{html, parse, store};
+use crate::mail::{html, otp, parse, store};
 use sqlx::{QueryBuilder, Sqlite, SqlitePool};
 use std::collections::HashMap;
 
@@ -53,7 +53,10 @@ pub fn push_scope(
         b.push(" AND m.folder_id = ").push_bind(folder.clone());
     } else if ids.is_none() {
         let cond = match effective_view(q, s) {
-            MailView::Inbox => format!("{ROLE} = 'inbox' AND {LIVE}"),
+            // Posteingang samt allem Ungelesenen aus anderen Ordnern (ohne Papierkorb/Spam)
+            MailView::Inbox => format!(
+                "({ROLE} = 'inbox' OR (m.seen = 0 AND {ROLE} NOT IN ('trash', 'junk', 'sent', 'drafts'))) AND {LIVE}"
+            ),
             MailView::Unread => format!(
                 "m.seen = 0 AND {ROLE} NOT IN ('trash', 'junk', 'sent', 'drafts') AND {LIVE}"
             ),
@@ -67,7 +70,9 @@ pub fn push_scope(
             MailView::Archive => format!("{ROLE} = 'archive' AND {LIVE}"),
             MailView::Junk => format!("{ROLE} = 'junk' AND {LIVE}"),
             MailView::Trash => format!("{ROLE} = 'trash' AND {LIVE}"),
-            MailView::All => format!("{ROLE} NOT IN ('trash', 'junk')"),
+            // Wirklich alles: auch Papierkorb, Spam und was nur noch im Archiv liegt
+            MailView::All => "1".to_string(),
+            MailView::TwoFactor => otp::sql_condition(),
         };
         b.push(" AND ").push(cond);
     }
@@ -175,6 +180,9 @@ pub async fn list(
     let limit = q.limit.unwrap_or(50).clamp(1, 500);
     let offset = q.offset.unwrap_or(0).max(0);
     let threads = q.threads == Some(true);
+    if q.folder.as_ref().is_none_or(|f| f.is_empty()) && effective_view(q, &s) == MailView::TwoFactor {
+        return list_codes(pool, user_id, q, &s, limit, offset).await;
+    }
 
     let mut b: QueryBuilder<Sqlite> = QueryBuilder::new("");
     if threads {
@@ -204,12 +212,79 @@ pub async fn list(
     push_scope(&mut c, user_id, q, &s, None);
     let total: i64 = c.build_query_scalar().fetch_one(pool).await?;
 
+    let mut items: Vec<api::MessageSummary> = rows.iter().map(SummaryRow::to_api).collect();
+    add_codes(pool, &mut items).await?;
     Ok(api::MessageList {
-        items: rows.iter().map(SummaryRow::to_api).collect(),
+        items,
         total,
         offset,
         limit,
     })
+}
+
+/// Ansicht „2FA-Codes“: Kandidaten per SQL, die genaue Erkennung in Rust (einzelne
+/// Nachrichten, keine Unterhaltungen).
+async fn list_codes(
+    pool: &SqlitePool,
+    user_id: &str,
+    q: &MessageQuery,
+    s: &Search,
+    limit: i64,
+    offset: i64,
+) -> AppResult<api::MessageList> {
+    #[derive(sqlx::FromRow)]
+    struct Row {
+        #[sqlx(flatten)]
+        summary: SummaryRow,
+        body: String,
+    }
+    let mut b: QueryBuilder<Sqlite> = QueryBuilder::new(format!(
+        "SELECT {SUMMARY_COLUMNS}, substr(m.text_body, 1, 4000) AS body"
+    ));
+    push_scope(&mut b, user_id, q, s, None);
+    b.push(" ORDER BY m.date DESC, m.id DESC LIMIT 2000");
+    let rows: Vec<Row> = b.build_query_as().fetch_all(pool).await?;
+    let all: Vec<api::MessageSummary> = rows
+        .into_iter()
+        .filter_map(|r| {
+            let code = otp::extract(&r.summary.subject, &r.body)?;
+            let mut m = r.summary.to_api();
+            m.otp_code = code;
+            Some(m)
+        })
+        .collect();
+    let total = all.len() as i64;
+    Ok(api::MessageList {
+        items: all.into_iter().skip(offset as usize).take(limit as usize).collect(),
+        total,
+        offset,
+        limit,
+    })
+}
+
+/// Erkannte Codes an die Einträge hängen (für die Anzeige in jeder Liste).
+async fn add_codes(pool: &SqlitePool, items: &mut [api::MessageSummary]) -> AppResult<()> {
+    if items.is_empty() {
+        return Ok(());
+    }
+    let mut b: QueryBuilder<Sqlite> =
+        QueryBuilder::new("SELECT m.id, m.subject, substr(m.text_body, 1, 4000) FROM messages m WHERE m.id IN (");
+    let mut sep = b.separated(", ");
+    for m in items.iter() {
+        sep.push_bind(m.id.clone());
+    }
+    b.push(") AND ").push(otp::sql_condition());
+    let rows: Vec<(String, String, String)> = b.build_query_as().fetch_all(pool).await?;
+    let codes: HashMap<String, String> = rows
+        .into_iter()
+        .filter_map(|(id, subject, body)| otp::extract(&subject, &body).map(|c| (id, c)))
+        .collect();
+    for m in items.iter_mut() {
+        if let Some(c) = codes.get(&m.id) {
+            m.otp_code = c.clone();
+        }
+    }
+    Ok(())
 }
 
 async fn summary(pool: &SqlitePool, user_id: &str, id: &str) -> AppResult<SummaryRow> {
@@ -441,13 +516,13 @@ mod tests {
         ] {
             assert!(s.contains(part), "{part} fehlt in {s}");
         }
-        // Mit Suchbegriff ohne Ansicht: alles (auch nur noch lokal), ohne Papierkorb/Spam
+        // Mit Suchbegriff ohne Ansicht: wirklich alles (auch nur noch lokal, Papierkorb, Spam)
         let s = sql(&MessageQuery {
             q: Some("x".into()),
             ..MessageQuery::default()
         });
         assert!(
-            s.contains("NOT IN ('trash', 'junk')") && !s.contains("on_server = 1"),
+            !s.contains("NOT IN ('trash', 'junk')") && !s.contains("on_server = 1"),
             "{s}"
         );
         // Ohne alles: Posteingang, nur was noch auf dem Server liegt

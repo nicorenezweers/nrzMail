@@ -276,7 +276,7 @@ impl Default for Preferences {
             load_remote_images: false,
             default_account: None,
             undo_send_seconds: UNDO_SEND_DEFAULT,
-            auto_refresh_seconds: 60,
+            auto_refresh_seconds: 30,
             inbox_start_all: true,
             conversation_view: ConversationView::Chat,
             chat_hide_quotes: true,
@@ -714,18 +714,34 @@ pub enum MailView {
     Archive,
     Junk,
     Trash,
-    /// Alles, auch was nur noch im lokalen Archiv liegt
+    /// Alles, auch was nur noch im lokalen Archiv liegt (inkl. Papierkorb und Spam)
     All,
+    /// Nachrichten mit einem Anmelde- bzw. Bestätigungscode (6 oder 8 Ziffern)
+    #[serde(rename = "2fa")]
+    TwoFactor,
 }
 
 impl MailView {
-    pub const ALL: [MailView; 9] = [
+    pub const ALL: [MailView; 10] = [
         MailView::Inbox,
         MailView::Unread,
         MailView::Starred,
         MailView::Sent,
         MailView::Drafts,
         MailView::Archive,
+        MailView::Junk,
+        MailView::Trash,
+        MailView::All,
+        MailView::TwoFactor,
+    ];
+
+    /// Ansichten in der Seitenleiste (Ungelesen steckt im Posteingang, Entwürfe und
+    /// Archiviert gibt es nur noch als Ordner bzw. unter „Alle Nachrichten“).
+    pub const SIDEBAR: [MailView; 7] = [
+        MailView::Inbox,
+        MailView::TwoFactor,
+        MailView::Starred,
+        MailView::Sent,
         MailView::Junk,
         MailView::Trash,
         MailView::All,
@@ -742,6 +758,7 @@ impl MailView {
             MailView::Junk => "junk",
             MailView::Trash => "trash",
             MailView::All => "all",
+            MailView::TwoFactor => "2fa",
         }
     }
 
@@ -760,6 +777,7 @@ impl MailView {
             MailView::Junk => "Spam",
             MailView::Trash => "Papierkorb",
             MailView::All => "Alle Nachrichten",
+            MailView::TwoFactor => "2FA-Codes",
         }
     }
 }
@@ -985,6 +1003,9 @@ pub struct MessageSummary {
     pub on_server: bool,
     /// Vom Benutzer gesendet.
     pub is_sent: bool,
+    /// Erkannter Anmelde-/Bestätigungscode (6 oder 8 Ziffern), sonst leer.
+    #[serde(default, skip_serializing_if = "String::is_empty")]
+    pub otp_code: String,
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Serialize, Deserialize)]
