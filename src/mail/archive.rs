@@ -327,7 +327,15 @@ fn read_archive(path: &Path, tx: tokio::sync::mpsc::Sender<ArchiveItem>) -> std:
                     continue;
                 }
             };
-            let name = entry.name().to_lowercase();
+            let name = match entry.name() {
+                Ok(n) => n.to_lowercase(),
+                Err(e) => {
+                    if !send(Err(e.to_string())) {
+                        return Ok(());
+                    }
+                    continue;
+                }
+            };
             if entry.is_dir()
                 || name.contains("__macosx/")
                 || name.rsplit('/').next().is_some_and(|n| n.starts_with('.'))

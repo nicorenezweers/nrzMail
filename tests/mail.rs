@@ -525,7 +525,7 @@ async fn import_list_search_detail_export_stats() {
     let mut zip = zip::ZipArchive::new(std::io::Cursor::new(zip_bytes.clone())).unwrap();
     assert_eq!(zip.len(), 2);
     let names: Vec<String> = (0..2)
-        .map(|i| zip.by_index(i).unwrap().name().to_string())
+        .map(|i| zip.by_index(i).unwrap().name().unwrap().into_owned())
         .collect();
     assert!(
         names

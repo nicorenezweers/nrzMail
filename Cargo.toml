@@ -1,6 +1,6 @@
 [package]
 name = "nrzmail"
-version = "1.4.0"
+version = "1.5.0"
 edition = "2021"
 description = "nrzMail – selbst gehosteter Mail-Client und Mail-Archiv in Rust (Rocket, SQLCipher, Dioxus)"
 license = "AGPL-3.0-or-later"
@@ -21,7 +21,7 @@ rocket_codegen = "=0.5.1"
 # libsqlite3-sys wird hier nur aufgeführt, um für sqlx die SQLCipher-Variante
 # (inkl. FTS5) einzuschalten – Cargo vereinigt die Features beider Abhängigkeiten.
 sqlx = { version = "0.9", default-features = false, features = ["runtime-tokio", "sqlite", "macros", "migrate", "json"] }
-libsqlite3-sys = { version = "0.37", features = ["bundled-sqlcipher-vendored-openssl"] }
+libsqlite3-sys = { version = "0.40", features = ["bundled-sqlcipher-vendored-openssl"] }
 
 # Laufzeit & Hilfen
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "fs", "process", "sync", "time", "io-util", "net"] }
@@ -50,7 +50,7 @@ mail-parser = "0.11"
 lettre = { version = "0.11", default-features = false, features = ["builder", "smtp-transport", "tokio1", "tokio1-rustls", "rustls-native-certs", "ring", "hostname"] }
 ammonia = "4"
 flate2 = "1"
-zip = { version = "2", default-features = false, features = ["deflate"] }
+zip = { version = "9", default-features = false, features = ["deflate"] }
 
 # KI: ausgehende Anfragen (rustls, keine zweite OpenSSL)
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
