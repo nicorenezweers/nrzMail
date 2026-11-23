@@ -10,4 +10,4 @@ ohne Container-Registry und ohne Login installiert werden kann. Der Quellcode li
 | `Rocket.toml` | Standard-Konfiguration |
 | `SHA256SUMS` | Prüfsummen |
 
-Stand: nrzMail 1.4.0, gebaut aus `85cb6be` mit `scripts/umbrel-release.sh 1.4.0`.
+Stand: nrzMail 1.5.0, gebaut aus `4db3243` mit `scripts/umbrel-release.sh 1.5.0`.
